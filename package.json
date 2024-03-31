@@ -95,7 +95,8 @@
     "eslint-config-google": "^0.14.0"
   },
   {
+  npm install --save imagemagick-convert
   "dependencies": {
-    "imagemagick": "*"
+    "imagemagick": "6.9.5"
   }
 }
