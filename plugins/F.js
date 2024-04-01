@@ -2,7 +2,7 @@ import fs from 'fs';
 
 let timeout = 60000; // وقت الانتظار بالمللي ثانية (60 ثانية)
 let pointsPerQuestion = 500; // عدد النقاط لكل سؤال
-let correctAnswerAudio = 'https://a.tumblr.com/tumblr_mnh7obF8711rni2aqo1.mp3'; // رابط الملف الصوتي للإجابة الصحيحة
+let correctAnswerAudio = 'shanks.mp3'; // رابط الملف الصوتي للإجابة الصحيحة
 
 let handler = async (m, { conn }) => {
     conn.questionsGame = conn.questionsGame || {};
