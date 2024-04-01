@@ -12,7 +12,7 @@ let handler = async (m, { conn, usedPrefix }) => {
         throw false
     }
 
-    let questions = JSON.parse(fs.readFileSync(`./src/game/questions.json`)) // قم بتحميل ملف الأسئلة الخاص بك
+    let questions = JSON.parse(fs.readFileSync(`./src/game/acertijo.json`)) // قم بتحميل ملف الأسئلة الخاص بك
     shuffleArray(questions) // قم بخلط الأسئلة بشكل عشوائي
 
     let questionIndex = conn.questionsGame[id] ? conn.questionsGame[id][1] + 1 : 0 // تحديد مؤشر السؤال القادم
