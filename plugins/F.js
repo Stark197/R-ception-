@@ -1,65 +1,66 @@
-const fs = require('fs');
-const { exec } = require('child_process');
+import fs from 'fs'
 
-let handler = m => m
-handler.all = async function (m) {
+let timeout = 60000 // وقت الانتظار بالمللي ثانية (60 ثانية)
+let pointsPerQuestion = 500 // عدد النقاط لكل سؤال
+let correctAnswerAudio = 'https://a.tumblr.com/tumblr_mnh7obF8711rni2aqo1.mp3' // رابط الملف الصوتي للإجابة الصحيحة
 
-    if (m.messageStubType == 9 && m.message) { // Check if it's a sticker message
-        let stickerId = m.message.stickerMessage.fileSha256.toString('base64');
-        let stickerUrl = `https://stickershop.line-scdn.net/stickershop/v1/sticker/${stickerId}/android/sticker.png`;
-        this.sendFile(m.chat, stickerUrl, 'sticker.png', '🤖', m);
-        return true; // Return true to indicate message is handled
+let handler = async (m, { conn, usedPrefix }) => {
+    conn.questionsGame = conn.questionsGame ? conn.questionsGame : {}
+    let id = m.chat
+    if (id in conn.questionsGame) {
+        conn.reply(m.chat, '*⌯ ⤹╵ ⌊انتظر حتى ينتهي السؤال الحالي⌉ ┆⎔*', conn.questionsGame[id][0])
+        throw false
     }
 
-    if (/^مزه$/i.test(m.text) ) {
-        let image = 'https://telegra.ph/file/4f9b6575446086b75dbc6.jpg'
-        let imageFilename = 'morning.jpg';
-        let stickerFilename = 'morning_sticker.png';
-        await convertToSticker(imageFilename, stickerFilename);
-        this.sendFile(m.chat, stickerFilename, 'sticker.png', '🌅', m);
-        fs.unlinkSync(stickerFilename); // Delete the temporary sticker file after sending
-        return true; // Return true to indicate message is handled
+    let questions = JSON.parse(fs.readFileSync(`./src/game/questions.json`)) // قم بتحميل ملف الأسئلة الخاص بك
+    shuffleArray(questions) // قم بخلط الأسئلة بشكل عشوائي
+
+    let questionIndex = conn.questionsGame[id] ? conn.questionsGame[id][1] + 1 : 0 // تحديد مؤشر السؤال القادم
+
+    // التحقق مما إذا كان اللاعب قد أجاب على جميع الأسئلة
+    if (questionIndex >= questions.length) {
+        conn.reply(m.chat, '*⌯ ⤹╵ ⌊لقد انتهت جميع الأسئلة، انتهت اللعبة⌉ ┆⎔*', conn.questionsGame[id][0])
+        delete conn.questionsGame[id]
+        return
     }
 
-    if (/^سونغ$/i.test(m.text) ) {
-        let image = 'https://telegra.ph/file/7e509caadfccd6dd0bff0.jpg'
-        let imageFilename = 'afternoon.jpg';
-        let stickerFilename = 'afternoon_sticker.png';
-        await convertToSticker(imageFilename, stickerFilename);
-        this.sendFile(m.chat, stickerFilename, 'sticker.png', '🌞', m);
-        fs.unlinkSync(stickerFilename); // Delete the temporary sticker file after sending
-        return true; // Return true to indicate message is handled
-    }
+    let question = questions[questionIndex].question
+    let answer = questions[questionIndex].answer
 
-    if (/^كانيكي$/i.test(m.text) ) {
-        let image = 'https://telegra.ph/file/e28fbb1405ff4f4520fad.jpg'
-        let imageFilename = 'night.jpg';
-        let stickerFilename = 'night_sticker.png';
-        await convertToSticker(imageFilename, stickerFilename);
-        this.sendFile(m.chat, stickerFilename, 'sticker.png', '🌙', m);
-        fs.unlinkSync(stickerFilename); // Delete the temporary sticker file after sending
-        return true; // Return true to indicate message is handled
-    }
-  
-    return false; // Return false if message is not handled
+    let caption = `
+ⷮ *السؤال رقم ${questionIndex + 1}:*
+${question}
+
+*┇◈↞الـوقـت⌚↞ ${(timeout / 1000).toFixed(2)}┇*
+*┇◈↞الـجـائـزة💵↞ ${pointsPerQuestion} نقاط┇*
+*『🍷┇𝐒𝐔𝐍𝐆 𝐁𝐎𝐓*
+`.trim()
+
+    conn.questionsGame[id] = [
+       await conn.reply(m.chat, caption, m),
+       questionIndex,
+       setTimeout(async () => {
+           if (conn.questionsGame[id]) await conn.reply(m.chat, `*⌯ ⤹╵ ⌊انتهى الوقت، الإجابة الصحيحة هي: "${answer}"⌉ ┆⎔*`, conn.questionsGame[id][0])
+           delete conn.questionsGame[id]
+       }, timeout)
+    ]
+    
+    // الإرسال الملف الصوتي بعد كل إجابة صحيحة
+    conn.on('message', async (m) => {
+        if (m.text && m.text.toLowerCase() === answer.toLowerCase() && conn.questionsGame[id]) {
+            await conn.sendFile(m.chat, correctAnswerAudio, '', '🎉 مبروك إجابتك الصحيحة! 🎉', m)
+        }
+    })
 }
 
-async function convertToSticker(inputFile, outputFile) {
-    return new Promise((resolve, reject) => {
-        exec(`convert ${inputFile} -resize 512x512! ${outputFile}`, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error converting image to sticker: ${error.message}`);
-                reject(error);
-                return;
-            }
-            if (stderr) {
-                console.error(`Error converting image to sticker: ${stderr}`);
-                reject(stderr);
-                return;
-            }
-            resolve();
-        });
-    });
-}
+handler.help = ['لعبة']
+handler.tags = ['game']
+handler.command = /^(لعبة)$/i
+export default handler
 
-export default handler;
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
